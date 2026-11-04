@@ -51,6 +51,9 @@ Os IDs impressos pelo script permitem acompanhar com `squeue -j ID` e os logs
 ficam em `results/logs/`.
 `submit_cluster.sh` agora verifica o executável COLMAP e as 400 fotos **antes**
 de chamar `sbatch`.
+Se houver apenas uma compilação CPU do COLMAP, usem
+`CPU_ONLY=1 SKIP_DENSE=1 bash scripts/submit_cluster.sh` para executar o
+modelo esparso; a densificação do COLMAP requer CUDA.
 
 O job aceita `export MARKER_SIZE_M=...` antes do `sbatch`; deixem sem valor
 até confirmar o lado preto. A escala pode ser aplicada depois sem refazer SfM.

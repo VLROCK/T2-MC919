@@ -22,8 +22,10 @@ if len(photos) != 400 or photos[0].open('rb').read(2) != b'\xff\xd8':
 print('Fotos OK:', len(photos), '| primeira:', photos[0].name, '| última:', photos[-1].name)
 PYCODE
 
+cpu_args=()
+if [[ "${CPU_ONLY:-0}" == "1" ]]; then cpu_args=(--cpu); fi
 "$PY" -m src.pipeline --images data/images --work "$WORK_DIR" \
-  --matching "$MATCHING" --colmap "$COLMAP_BIN"
+  --matching "$MATCHING" --colmap "$COLMAP_BIN" "${cpu_args[@]}"
 
 feature_args=()
 if [[ -f "$WORK_DIR/intrinsics.json" ]]; then

@@ -23,6 +23,11 @@ SPARSE_JOB=$(sbatch --parsable "$@" --output=results/logs/t2-sfm-%j.out \
 SPARSE_JOB="${SPARSE_JOB%%;*}"
 echo "SPARSE_JOB=$SPARSE_JOB"
 
+if [[ "${SKIP_DENSE:-0}" == "1" ]]; then
+  echo "SKIP_DENSE=1; job MVS não submetido."
+  exit 0
+fi
+
 DENSE_JOB=$(sbatch --parsable "$@" --dependency="afterok:$SPARSE_JOB" \
   --output=results/logs/t2-mvs-%j.out --export=ALL scripts/slurm_dense.sh)
 DENSE_JOB="${DENSE_JOB%%;*}"
