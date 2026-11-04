@@ -1,0 +1,8 @@
+{
+  "room_ground_truth_m": {
+    "width_m": 4.0,
+    "length_m": 4.30,
+    "height_m": 2.75
+  },
+  "notes": "Medidas informadas pelo grupo em 2026-11-04. Escala vem do lado físico do ArUco exibido na tela, a confirmar."
+}

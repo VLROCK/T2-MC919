@@ -1,0 +1,12 @@
+{
+  "total_photos": 1161,
+  "selected_photos": 400,
+  "marker_photos": 56,
+  "marker_selected": 56,
+  "sources": [
+    "data\\T2_MC919-20261104T031357Z-1-001",
+    "data\\T2_MC919-20261104T031357Z-1-002"
+  ],
+  "selected_output": "data\\images",
+  "scan_limit": 450
+}

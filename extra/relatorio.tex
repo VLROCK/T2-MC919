@@ -1,0 +1,124 @@
+\documentclass[10pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,tabularx,array}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage[a4paper,margin=1.8cm]{geometry}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.35em}
+\hypersetup{colorlinks=true,linkcolor=blue!45!black,urlcolor=blue!45!black,citecolor=blue!45!black}
+\newcommand{\Resultado}[1]{\textcolor{red!65!black}{\textbf{[PREENCHER: #1]}}}
+\newcommand{\Opcional}[1]{\textcolor{blue!50!black}{\textit{[OPCIONAL: #1]}}}
+\newcommand{\cm}{\,\mathrm{cm}}
+\title{Reconstrução 3D métrica de uma cena forense simulada em ambiente interno}
+\author{\Resultado{integrantes e RAs do grupo}}
+\date{MC919 --- Trabalho 2 --- novembro de 2026}
+
+\begin{document}
+\maketitle
+\vspace{-1.4em}
+
+\begin{abstract}
+Este trabalho investiga a reconstrução tridimensional de uma sala preparada como cena forense simulada por meio de múltiplas fotografias. O pipeline combina comparação de descritores locais, verificação epipolar e \emph{Structure-from-Motion} (SfM) incremental; uma referência física fornece escala métrica. São produzidas nuvem esparsa, poses e trajetória das câmeras e planta baixa. Avaliamos erro de reprojeção, dimensões independentes e fechamento do percurso; estudamos o efeito de \Resultado{variável escolhida para a ablação}. O foco é quantificar o que uma captura fotográfica comum consegue documentar, sem pressupor desempenho equivalente ao de um scanner laser pericial.
+\end{abstract}
+
+\section{Problema e escopo}
+O objetivo é reconstruir um ambiente interno com a câmera percorrendo a sala e retornando ao ponto inicial, conforme a Variante A do enunciado~\cite{enunciado}. A sala contém \Resultado{descrever cenário e objetos simulados}; todos os elementos permanecem imóveis durante a captura. A pergunta experimental é: \emph{com que completude e erro métrico podemos reconstruir a geometria da sala e localizar referências fixas usando apenas imagens?}
+
+As saídas obrigatórias são nuvem de pontos esparsa com poses, trajetória projetada sobre a nuvem, planta baixa, medidas em escala e vídeo de navegação de 30--60 segundos. A nuvem densa e a detecção de planos ortogonais são extensões. Uma malha texturizada não é requisito desta variante. O estudo não constitui exame de evidência real: objetos e marcadores são encenados, e conclusões se restringem ao conjunto capturado.
+
+\section{Aquisição e dados de referência}
+\textbf{Cena e percurso.} O ambiente escolhido é \Resultado{identificação da sala registrada com o professor}, com aproximadamente \Resultado{largura} por \Resultado{comprimento} metros. Fotografamos com \Resultado{dispositivo, lente e resolução}, mantendo lente/zoom e, quando possível, foco, exposição e iluminação constantes. Capturamos \Resultado{número} fotos em sequência, com sobreposição estimada de 60--80\%, deslocando fisicamente a câmera entre tomadas. O percurso fecha no local inicial, com visada semelhante no começo e no fim. Janelas em contraluz, vidro, reflexos, paredes lisas e pessoas em movimento são evitados ou documentados. Esses cuidados seguem as recomendações de captura do COLMAP~\cite{colmap}.
+
+\textbf{Escala e validação.} Um marcador ArUco impresso, de lado físico conhecido $L_{\rm ref}=\Resultado{valor}$, permanece fixo e aparece em pelo menos três imagens registradas. Como alternativa manual, podem-se indicar dois pontos 3D de distância conhecida. Registramos separadamente, com trena, a largura $L_w$, o comprimento $L_l$ e uma altura $L_h$, além de \Resultado{outras distâncias entre alvos fixos}. A dimensão usada para calibrar a escala não participa da avaliação independente. As fotos originais são preservadas; seleção e tratamento, se empregados, geram cópias e são registrados em manifesto. Isso facilita auditoria do processamento, em linha com recomendações de documentação de imagens em fotogrametria forense~\cite{swgde}.
+
+\textbf{Organização.} O projeto guarda originais, imagens selecionadas em ordem, medidas de campo, configuração, banco de correspondências e reconstruções em diretórios distintos. O \texttt{run.sh} invoca as etapas e um script próprio gera visualizações e tabelas. Parâmetros, versão das bibliotecas, equipamento, EXIF relevante e critérios de descarte são registrados no repositório.
+
+\section{Pipeline de reconstrução}
+\subsection{Características, emparelhamento e geometria}
+Comparamos SIFT e \Resultado{ORB ou AKAZE} nos mesmos pares representativos de imagens, incluindo um par vizinho, um par de fechamento e um par difícil. Para cada método, medimos quantidade de keypoints, correspondências após \emph{ratio test} de Lowe, fração de inliers após RANSAC e tempo de processamento; mostramos keypoints e correspondências aceitas. Para descritores binários usamos distância de Hamming; para SIFT, distância euclidiana. Os limiares são documentados, e a comparação mantém resolução e pares fixos.
+
+Estimamos a matriz fundamental $F$ por RANSAC, usando $\mathbf{x}'^{\top}F\mathbf{x}=0$. Dados os parâmetros intrínsecos $K$ e $K'$, calculamos $E=K'^{\top}FK$, ou estimamos $E$ diretamente com coordenadas calibradas. Decompomos $E=[\mathbf{t}]_\times R$, escolhemos a solução fisicamente válida por quiralidade e triangulamos pontos iniciais a partir das duas matrizes de projeção. A translação recuperada tem direção, mas não escala absoluta. A demonstração em dois quadros explica a geometria; a reconstrução global usa o SfM incremental do COLMAP, com ajuste de feixes e registro de múltiplas imagens~\cite{colmap}.
+
+\subsection{SfM, escala e orientação}
+O experimento principal usa emparelhamento \Resultado{sequencial com fechamento de laço ou exaustivo} seguido de mapeamento incremental. Extraímos pontos $\mathbf{X}_j$, observações $\mathbf{x}_{ij}$, parâmetros de câmera e poses. O código detecta os quatro cantos do ArUco nas imagens registradas~\cite{aruco}, remove a distorção de lente, triangula cada canto em múltiplas vistas e rejeita observações com erro de reprojeção excessivo. Se $\hat L_{\rm ref}$ é a mediana dos quatro lados reconstruídos, a escala é
+\begin{equation}
+ s=\frac{L_{\rm ref}}{\hat L_{\rm ref}},\qquad
+ \mathbf{X}^{\rm m}=s\mathbf{X},\quad \mathbf{C}^{\rm m}=s\mathbf{C}.
+\end{equation}
+Na alternativa manual, $\hat L_{\rm ref}=\lVert\mathbf{X}_a-\mathbf{X}_b\rVert$ para dois pontos esparsos selecionados. A orientação inicial estima o eixo vertical pela mediana dos vetores ``para cima'' das câmeras, supondo que a câmera foi mantida aproximadamente nivelada. A rotação resultante é aplicada tanto à nuvem quanto aos centros das câmeras. Depois, RANSAC detecta planos candidatos horizontais e verticais; o plano do chão não é usado para corrigir a orientação. Qualquer classificação de plano deve ser conferida visualmente.
+
+\textbf{Por que medir a sala?} Uma reconstrução SfM monocular só determina a cena até uma transformação de similaridade; não recupera metros a partir das fotos sem alguma referência física. O ArUco automatiza a detecção da referência e o cálculo do fator de escala, mas seu tamanho físico ainda precisa ser informado. As medidas da sala são \emph{testes independentes} da exatidão. Um sensor de profundidade, uma base estéreo conhecida ou outra referência externa mudaria essa condição.
+
+\subsection{Planta baixa e extensões}
+Projetamos os pontos escalados no plano horizontal e desenhamos os centros $\mathbf{C}_i$ ligados na ordem de captura. RANSAC propõe planos de parede; pares aproximadamente paralelos com a câmera entre eles fornecem candidatos a largura e comprimento. O código também procura pares horizontais para estimar altura e calcula ângulos entre planos verticais. Essas estimativas automáticas podem falhar por mobiliário, baixa densidade ou planos espúrios; nesse caso, medimos distâncias entre IDs de pontos 3D escolhidos manualmente e informamos essa intervenção. Evitamos medir a sala pelo retângulo mínimo de toda a nuvem, que pode incluir móveis e outliers. \Opcional{executar MVS para nuvem densa; exportar GLB para visualização web.}
+
+\section{Experimentos e métricas}
+O erro de reprojeção por observação é $r_{ij}=\lVert\pi(K_i,R_i,\mathbf{t}_i,\mathbf{X}_j)-\mathbf{x}_{ij}\rVert_2$, em pixels. Reportamos média e mediana de $r_{ij}$, número de imagens registradas, pontos esparsos e densos, e densidade aproximada $N/A$ em pontos por metro quadrado, deixando claro se $A$ é a área do piso ou das superfícies avaliadas. Para cada dimensão independente $L_k$, usamos $a_k=|\hat L_k-L_k|$ em centímetros e $e_k=a_k/L_k$.
+
+Para o percurso, com centros consecutivos $\mathbf{C}_1,\ldots,\mathbf{C}_N$ já em metros, calculamos
+\begin{equation}
+\delta=\lVert\mathbf{C}_N-\mathbf{C}_1\rVert,\qquad
+\ell=\sum_{i=1}^{N-1}\lVert\mathbf{C}_{i+1}-\mathbf{C}_i\rVert,\qquad
+e_{\rm laço}=100\delta/\ell.
+\end{equation}
+Esse valor só é interpretável se início e fim foram capturados em posições realmente próximas; o deslocamento manual entre as tomadas também contribui para $\delta$.
+
+\begin{table}[h]
+\centering\small
+\caption{Plano experimental. Preencher apenas com execuções concluídas.}
+\begin{tabularx}{\linewidth}{p{2.7cm}X p{4.0cm}}
+\toprule
+Experimento & Variável controlada & Saídas comparadas \\
+\midrule
+Descritores & SIFT versus \Resultado{ORB/AKAZE}; mesmos pares e resolução & keypoints, matches, inliers, tempo \\
+Emparelhamento & \Resultado{sequencial/exaustivo; com/sem laço} & imagens registradas, $\delta$, reprojeção, tempo \\
+Fotos & \Resultado{subconjuntos, se usados} & completude, dimensões, pontos, tempo \\
+Densificação & \Opcional{MVS ligado/desligado} & pontos, cobertura visual, custo \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[h]
+\centering\small
+\caption{Resultados da reconstrução principal.}
+\begin{tabularx}{\linewidth}{X r}
+\toprule
+Métrica & Valor \\
+\midrule
+Fotos capturadas / selecionadas / registradas & \Resultado{números} \\
+Pontos esparsos / densos; densidade aproximada & \Resultado{números} \\
+Reprojeção média / mediana (px) & \Resultado{valores} \\
+Largura real / estimada; erro absoluto / relativo & \Resultado{valores} \\
+Comprimento real / estimado; erro absoluto / relativo & \Resultado{valores} \\
+Altura real / estimada; erro absoluto / relativo & \Resultado{valores} \\
+Deriva $\delta$ (cm) / $e_{\rm laço}$ (\%) & \Resultado{valores} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Discussão forense e comparação com TLS}
+Scanners laser terrestres (TLS) usados por equipes periciais estimam distâncias às superfícies por medição ativa e geram nuvens métricas a partir de posições estacionárias; sua exatidão e precisão exigem verificação periódica~\cite{nist}. Nosso método estima profundidade passivamente pela geometria de vistas sobrepostas e requer referência para escala. A comparação útil é por \emph{critérios}, não por uma alegação genérica de equivalência: cobertura, erro em distâncias de controle, lacunas em superfícies reflexivas ou lisas, tempo de captura/processamento, portabilidade e custo de acesso. Sem um TLS medindo a mesma cena, a comparação com equipamento profissional permanece qualitativa e baseada em literatura; não atribuímos erro numérico ao scanner.
+
+Caso haja acesso a um TLS, propomos registrar a \emph{mesma} sala sem mover objetos, alinhar as nuvens por alvos comuns, manter a escala métrica do TLS e comparar distâncias independentes e cobertura espacial. Um erro médio entre nuvens só é informativo depois de alinhar coordenadas, limitar a comparação às superfícies comuns e explicitar a resolução/amostragem de cada equipamento. A nuvem fotogramétrica pode ser detalhada em áreas texturizadas e deficiente em vidro, brilho, paredes vazias e partes ocluídas. A nuvem esparsa não deve ser usada para inferir detalhes pequenos de ``evidências'' simuladas sem verificação específica.
+
+O projeto já inclui detecção automática do ArUco para escala, marcação manual de pontos de interesse por ID e cálculo de suas distâncias, planta e mapa de densidade de pontos como indicador de cobertura. Há também uma rotina opcional de comparação com PLY de TLS. Esta última alinha nuvens por pelo menos três marcos correspondentes, usando apenas rotação e translação: ajustar a escala esconderia justamente um possível erro métrico. Ela reporta resíduos dos marcos e distâncias de vizinho mais próximo em ambas as direções, que exigem interpretação cautelosa por causa de densidade, amostragem, oclusão e diferenças de cobertura. Extensões futuras incluem incerteza por medida com capturas repetidas e interface interativa. Cada distância deve guardar quais alvos ou planos a originaram e qual referência definiu a escala. Diretrizes forenses pedem que método, material e fontes de incerteza sejam documentados~\cite{swgde}.
+
+\section{Limitações e conclusão}
+\Resultado{discutir falhas observadas, taxa de registro, lacunas, reflexos, paredes lisas, objetos pequenos e impacto da ablação}. A ausência de textura, iluminação variável, distorção mal calibrada, \emph{motion blur}, marcador curto ou mal localizado e fechamento visual fraco podem degradar tanto a geometria quanto as medidas. Erro de reprojeção baixo, isoladamente, não garante erro métrico baixo: por isso usamos dimensões físicas independentes. A conclusão deve responder à pergunta inicial com os valores medidos e separar resultado observado de hipóteses.
+
+\begin{thebibliography}{9}\small
+\bibitem{enunciado} A. Rocha. \emph{``Reconstrução'' 3D com Múltiplas Imagens (T2)}. Enunciado de MC919, 2026.
+\bibitem{colmap} COLMAP. \emph{Tutorial: Structure-from-Motion, Feature Matching e Multi-View Stereo}. \url{https://colmap.github.io/tutorial.html}. Acesso em 2 nov. 2026.
+\bibitem{aruco} OpenCV. \emph{Detection of ArUco Markers}. \url{https://docs.opencv.org/4.10.0/d5/dae/tutorial_aruco_detection.html}. Acesso em 2 nov. 2026.
+\bibitem{swgde} Scientific Working Group on Digital Evidence. \emph{Best Practices for the Forensic Use of Photogrammetry}, versão 1.2, 13 jan. 2022. \url{https://www.swgde.org/wp-content/uploads/2023/11/2022-01-13-SWGDE-Best-Practices-for-the-Forensic-Use-of-Photogrammetry_v1.2.pdf}. Acesso em 2 nov. 2026.
+\bibitem{nist} National Institute of Standards and Technology. \emph{Terrestrial Laser Scanner Performance Evaluation and Documentary Standard for Forensic Practice}, 2026. \url{https://www.nist.gov/programs-projects/terrestrial-laser-scanner-performance-evaluation-and-documentary-standard-forensic}. Acesso em 2 nov. 2026.
+\end{thebibliography}
+\end{document}

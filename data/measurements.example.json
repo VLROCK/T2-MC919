@@ -1,0 +1,16 @@
+{
+  "room_ground_truth_m": {"width_m": 3.2, "length_m": 4.8, "height_m": 2.7},
+  "reference": {
+    "point_ids": [101, 202],
+    "distance_m": 0.5
+  },
+  "dimensions": {
+    "largura": {"point_ids": [301, 302], "actual_m": 3.2},
+    "comprimento": {"point_ids": [401, 402], "actual_m": 4.8},
+    "altura_porta": {"point_ids": [501, 502], "actual_m": 2.1}
+  },
+  "evidence": [
+    {"label": "E1", "point_id": 601},
+    {"label": "E2", "point_id": 602}
+  ]
+}

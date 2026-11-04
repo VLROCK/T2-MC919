@@ -1,0 +1,17 @@
+__pycache__/
+.pytest_cache/
+*.pyc
+data/images/
+data/images_all/
+data/T2_MC919-*/
+data/*.zip
+data/overview_selected.jpg
+work/
+results/
+extra/*.aux
+extra/*.fdb_latexmk
+extra/*.fls
+extra/*.log
+extra/*.out
+extra/*.pdf
+extra/*.synctex.gz
