@@ -10,7 +10,7 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from src.feature_analysis import build_parser, run, select_pairs
+from src.feature_analysis import build_parser, read_image, run, select_pairs
 
 
 def render_pair() -> tuple[np.ndarray, np.ndarray, dict[str, float]]:
@@ -38,6 +38,16 @@ def render_pair() -> tuple[np.ndarray, np.ndarray, dict[str, float]]:
 
 
 class FeatureAnalysisTest(unittest.TestCase):
+    def test_read_image_preserves_colmap_pixel_orientation(self) -> None:
+        from PIL import Image
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "rotated_by_exif.jpg"
+            exif = Image.Exif()
+            exif[274] = 6  # Viewers rotate this 90 degrees; COLMAP keeps the stored grid.
+            Image.new("RGB", (40, 20), "red").save(path, exif=exif)
+            self.assertEqual(read_image(path).shape[:2], (20, 40))
+
     def test_pair_selection_keeps_closure(self) -> None:
         images = [Path(f"image{i:04}.jpg") for i in range(10)]
         pairs = select_pairs(images, 3)

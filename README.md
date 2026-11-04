@@ -35,8 +35,8 @@ mkdir -p data/images
 test "$(find data/images -maxdepth 1 -iname '*.JPG' | wc -l)" -eq 400
 export PY="$HOME/miniconda3/envs/horus_theme/bin/python"
 "$PY" -m pip install -r requirements.txt
-command -v colmap  # se falhar, carregue o módulo do cluster ou instale COLMAP
-export COLMAP_BIN=colmap
+export COLMAP_BIN="$HOME/miniconda3/envs/t2_colmap/bin/colmap"
+"$COLMAP_BIN" help >/dev/null
 mkdir -p results/logs
 bash scripts/submit_cluster.sh --gres=gpu:1
 ```
@@ -55,6 +55,25 @@ Os IDs impressos pelo script permitem acompanhar com `squeue -j ID` e os logs
 ficam em `results/logs/`.
 `submit_cluster.sh` agora verifica o executável COLMAP e as 400 fotos **antes**
 de chamar `sbatch`.
+
+Se o COLMAP já concluiu a reconstrução esparsa em `work/gpu_compat` e o job
+falhou somente na análise posterior, aproveitem o modelo existente. No cluster:
+
+```bash
+cd /home/victor.roquetto/T2-MC919
+git pull origin main
+export PY="$HOME/miniconda3/envs/horus_theme/bin/python"
+export COLMAP_BIN="$HOME/miniconda3/envs/t2_colmap/bin/colmap"
+WORK_DIR=work/gpu_compat bash scripts/submit_resume.sh --gres=gpu:1
+```
+
+`FINISH_JOB` calcula métricas, vídeo e comparação SIFT/ORB/AKAZE em CPU;
+`DENSE_JOB` inicia MVS, malha e textura em GPU após o primeiro terminar. Nenhum
+dos dois refaz extração de características, matching ou mapeamento esparso.
+Consultem `squeue -j ID` e `results/logs/t2-finish-ID.out` ou
+`results/logs/t2-mvs-ID.out`. A análise de descritores passa a respeitar a
+orientação de pixels usada pela calibração do COLMAP, mesmo quando o EXIF pede
+rotação para visualização.
 Se houver apenas uma compilação CPU do COLMAP, usem
 `CPU_ONLY=1 SKIP_DENSE=1 bash scripts/submit_cluster.sh` para executar o
 modelo esparso; a densificação do COLMAP requer CUDA.

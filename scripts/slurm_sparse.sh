@@ -31,13 +31,6 @@ if [[ "${CPU_ONLY:-0}" == "1" ]]; then cpu_args=(--cpu); fi
   --feature-threads "${FEATURE_THREADS:-4}" \
   --max-matches "${MAX_MATCHES:-8192}" "${cpu_args[@]}"
 
-feature_args=()
-if [[ -f "$WORK_DIR/intrinsics.json" ]]; then
-  feature_args=(--intrinsics "$WORK_DIR/intrinsics.json")
-fi
-"$PY" -m src.feature_analysis --images data/images --output "$WORK_DIR/features" \
-  "${feature_args[@]}"
-
 scale_args=()
 if [[ -n "${MARKER_SIZE_M:-}" ]]; then
   "$PY" -m src.scale_marker --model "$WORK_DIR/sparse_txt" --images data/images \
@@ -51,3 +44,12 @@ fi
 "$PY" -m src.visualize --model "$WORK_DIR/sparse_txt" \
   --metrics "$WORK_DIR/analysis/metrics.json" \
   --output "$WORK_DIR/analysis/navigation.mp4"
+
+feature_args=()
+if [[ -f "$WORK_DIR/intrinsics.json" ]]; then
+  feature_args=(--intrinsics "$WORK_DIR/intrinsics.json")
+fi
+if ! "$PY" -m src.feature_analysis --images data/images --output "$WORK_DIR/features" \
+  "${feature_args[@]}"; then
+  echo 'Aviso: comparação de descritores falhou; análise e vídeo permanecem disponíveis.' >&2
+fi

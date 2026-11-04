@@ -24,7 +24,9 @@ IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".bmp", ".webp"}
 def read_image(path: Path) -> np.ndarray:
     """Read Unicode paths on Windows as well as ordinary paths."""
     encoded = np.fromfile(str(path), dtype=np.uint8)
-    image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+    # COLMAP 3.13 keeps the pixel grid in EXIF's stored orientation for these
+    # iPhone photos. Match its camera width/height and calibrated intrinsics.
+    image = cv2.imdecode(encoded, cv2.IMREAD_COLOR | cv2.IMREAD_IGNORE_ORIENTATION)
     if image is None:
         raise ValueError(f"Não foi possível ler a imagem: {path}")
     return image
