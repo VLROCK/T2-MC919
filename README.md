@@ -35,7 +35,7 @@ mkdir -p data/images
 test "$(find data/images -maxdepth 1 -iname '*.JPG' | wc -l)" -eq 400
 export PY="$HOME/miniconda3/envs/horus_theme/bin/python"
 "$PY" -m pip install -r requirements.txt
-colmap help
+command -v colmap  # se falhar, carregue o módulo do cluster ou instale COLMAP
 export COLMAP_BIN=colmap
 mkdir -p results/logs
 bash scripts/submit_cluster.sh --gres=gpu:1
@@ -49,6 +49,8 @@ execução mais lenta; MVS pode não estar disponível na instalação do COLMAP
 Os recursos padrão nos scripts são 16 CPUs e 64 GB; também podem ser ajustados.
 Os IDs impressos pelo script permitem acompanhar com `squeue -j ID` e os logs
 ficam em `results/logs/`.
+`submit_cluster.sh` agora verifica o executável COLMAP e as 400 fotos **antes**
+de chamar `sbatch`.
 
 O job aceita `export MARKER_SIZE_M=...` antes do `sbatch`; deixem sem valor
 até confirmar o lado preto. A escala pode ser aplicada depois sem refazer SfM.
