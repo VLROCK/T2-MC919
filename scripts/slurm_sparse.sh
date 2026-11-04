@@ -25,7 +25,11 @@ PYCODE
 cpu_args=()
 if [[ "${CPU_ONLY:-0}" == "1" ]]; then cpu_args=(--cpu); fi
 "$PY" -m src.pipeline --images data/images --work "$WORK_DIR" \
-  --matching "$MATCHING" --colmap "$COLMAP_BIN" "${cpu_args[@]}"
+  --matching "$MATCHING" --colmap "$COLMAP_BIN" \
+  --feature-image-size "${FEATURE_IMAGE_SIZE:-2000}" \
+  --max-features "${MAX_FEATURES:-4096}" \
+  --feature-threads "${FEATURE_THREADS:-4}" \
+  --max-matches "${MAX_MATCHES:-8192}" "${cpu_args[@]}"
 
 feature_args=()
 if [[ -f "$WORK_DIR/intrinsics.json" ]]; then

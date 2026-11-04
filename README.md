@@ -47,6 +47,10 @@ MVS, malha e textura. `--gres=gpu:1` é um exemplo: ajustem essa opção à
 partição/GPU exigida pelo cluster. Sem GPU, retirem a opção e esperem uma
 execução mais lenta; MVS pode não estar disponível na instalação do COLMAP.
 Os recursos padrão nos scripts são 16 CPUs e 64 GB; também podem ser ajustados.
+Após um OOM na extração em CPU, o job esparso limita a imagem de extração a
+2000 px, SIFT a 4096 características por foto e a extração a quatro threads.
+Os parâmetros ficam em `manifest.json` e podem ser ajustados por
+`FEATURE_IMAGE_SIZE`, `MAX_FEATURES`, `FEATURE_THREADS` e `MAX_MATCHES`.
 Os IDs impressos pelo script permitem acompanhar com `squeue -j ID` e os logs
 ficam em `results/logs/`.
 `submit_cluster.sh` agora verifica o executável COLMAP e as 400 fotos **antes**

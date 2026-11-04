@@ -75,6 +75,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--colmap", default="colmap", help="Executável COLMAP ou caminho para COLMAP.bat.")
     p.add_argument("--max-images", type=int, default=None,
                    help="Amostra uniforme para estudo de ablação; use work separado.")
+    p.add_argument("--feature-image-size", type=int, default=2000,
+                   help="Lado máximo usado na extração SIFT; reduz RAM (padrão: 2000 px).")
+    p.add_argument("--max-features", type=int, default=4096,
+                   help="Máximo de descritores SIFT por foto (padrão: 4096).")
+    p.add_argument("--feature-threads", type=int, default=4,
+                   help="Threads da extração, para limitar memória (padrão: 4).")
+    p.add_argument("--max-matches", type=int, default=8192,
+                   help="Limite de correspondências por par no matcher (padrão: 8192).")
     return p
 
 
@@ -86,6 +94,8 @@ def main() -> None:
         raise SystemExit(f"São necessárias pelo menos 3 fotos em {source}; encontradas {len(photos)}.")
     if args.max_images is not None and args.max_images < 3:
         raise SystemExit("--max-images precisa ser >= 3")
+    if min(args.feature_image_size, args.max_features, args.feature_threads, args.max_matches) < 1:
+        raise SystemExit("Limites de imagem, features, threads e matches devem ser positivos.")
     if args.loop_detection and args.matching != "sequential":
         raise SystemExit("--loop-detection exige --matching sequential")
     if args.mesh and not args.dense:
@@ -118,13 +128,17 @@ def main() -> None:
     timing: dict[str, float] = {}
 
     cmd = [args.colmap, "feature_extractor", "--database_path", str(db),
-           "--image_path", str(image_path)]
+           "--image_path", str(image_path),
+           "--FeatureExtraction.max_image_size", str(args.feature_image_size),
+           "--FeatureExtraction.num_threads", str(args.feature_threads),
+           "--SiftExtraction.max_num_features", str(args.max_features)]
     if args.cpu:
         cmd += cpu_option(args.colmap, "feature_extractor",
                           ("--FeatureExtraction.use_gpu", "--SiftExtraction.use_gpu"))
     timing["feature_extractor_s"] = execute(cmd, log)
 
     cmd = [args.colmap, f"{args.matching}_matcher", "--database_path", str(db)]
+    cmd += ["--FeatureMatching.max_num_matches", str(args.max_matches)]
     if args.loop_detection:
         cmd += ["--SequentialMatching.loop_detection", "1"]
     if args.cpu:
@@ -162,6 +176,8 @@ def main() -> None:
     manifest = {
         "images_input": str(source), "images_used": str(image_path), "num_input_images": len(photos),
         "matching": args.matching, "loop_detection": args.loop_detection, "cpu": args.cpu,
+        "feature_image_size": args.feature_image_size, "max_features": args.max_features,
+        "feature_threads": args.feature_threads, "max_matches": args.max_matches,
         "selected_model": str(model_bin),
         "model_text": str(work / "sparse_txt"), "registered_images": registered,
         "sparse_points": npoints, "all_models": [
