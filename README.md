@@ -98,8 +98,27 @@ O resumo passará a registrar `dense_ply`, `mesh_ply` e
 falho no `sacct`; o novo job registra a finalização.
 Se uma versão 4.0+ do COLMAP estiver disponível em outro ambiente, somente a
 etapa `mesh_texturer` precisa ser executada sobre `dense/`; a nuvem e a malha
-existentes podem ser reaproveitadas. Confiram primeiro `COLMAP4 mesh_texturer -h`
-e mantenham a pasta `dense/images` com as imagens retificadas.
+existentes podem ser reaproveitadas. No cluster, instalem uma versão 4.x em
+ambiente separado, verifiquem o comando e submetam apenas a texturização:
+
+```bash
+cd /home/victor.roquetto/T2-MC919
+git pull origin main
+"$HOME/miniconda3/bin/conda" create -y -n t2_colmap4 -c conda-forge 'colmap>=4,<5'
+export PY="$HOME/miniconda3/envs/horus_theme/bin/python"
+export COLMAP_TEXTURE_BIN="$HOME/miniconda3/envs/t2_colmap4/bin/colmap"
+export WORK_DIR=work/gpu_compat
+"$COLMAP_TEXTURE_BIN" mesh_texturer -h >/dev/null
+mkdir -p results/logs
+sbatch --parsable --export=ALL --output=results/logs/t2-texture-%j.out \
+  scripts/slurm_texture.sh
+```
+
+Esta etapa usa `dense/images`, `dense/sparse` e `dense/meshed-delaunay.ply` e
+deve produzir `dense/textured/mesh.ply` e `dense/textured/texture.png`. Não
+refaz SfM, mapas de profundidade, fusão nem malha. A compatibilidade entre o
+workspace gerado pelo COLMAP 3.13 e o texturizador 4.x precisa ser confirmada
+na execução; se falhar, o erro original ficará em `work/gpu_compat/commands.log`.
 Se houver apenas uma compilação CPU do COLMAP, usem
 `CPU_ONLY=1 SKIP_DENSE=1 bash scripts/submit_cluster.sh` para executar o
 modelo esparso; a densificação do COLMAP requer CUDA.
