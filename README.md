@@ -23,6 +23,10 @@ O GitHub contém código e manifestos; copiem manualmente as 400 fotos de
 `data/images/` para a mesma pasta no cluster antes de enviar os jobs. O caminho
 de Python abaixo usa o ambiente mostrado no exemplo do grupo:
 
+No computador local, um exemplo de cópia é
+`scp -r data/images victor.roquetto@HOST_DO_CLUSTER:/home/victor.roquetto/T2-MC919/data/`.
+Substituam `HOST_DO_CLUSTER` pelo endereço real usado por vocês.
+
 ```bash
 git clone https://github.com/VLROCK/T2-MC919.git
 cd T2-MC919

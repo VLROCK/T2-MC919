@@ -16,10 +16,10 @@ mkdir -p "$WORK_DIR"
 "$COLMAP_BIN" help >/dev/null
 "$PY" - <<'PYCODE'
 from pathlib import Path
-p = next(iter(sorted(Path('data/images').glob('*.JPG'))), None)
-if p is None or p.open('rb').read(2) != b'\xff\xd8':
-    raise SystemExit('Fotos ausentes em data/images. Copie as fotos selecionadas para o cluster.')
-print('Primeira foto OK:', p)
+photos = sorted(Path('data/images').glob('*.JPG'))
+if len(photos) != 400 or photos[0].open('rb').read(2) != b'\xff\xd8':
+    raise SystemExit(f'Esperadas 400 fotos JPEG em data/images; encontradas {len(photos)}.')
+print('Fotos OK:', len(photos), '| primeira:', photos[0].name, '| última:', photos[-1].name)
 PYCODE
 
 "$PY" -m src.pipeline --images data/images --work "$WORK_DIR" \
