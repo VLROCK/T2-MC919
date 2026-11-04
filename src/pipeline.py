@@ -22,18 +22,29 @@ def execute(command: list[str], log_file: Path) -> float:
         process = subprocess.run(command, stdout=out, stderr=subprocess.STDOUT, check=False)
     elapsed = time.perf_counter() - start
     if process.returncode:
-        raise RuntimeError(f"Comando falhou ({process.returncode}): {' '.join(command)}. Veja {log_file}")
+        with log_file.open("rb") as stream:
+            stream.seek(max(0, stream.seek(0, 2) - 12000))
+            excerpt = stream.read().decode("utf-8", errors="replace")
+        tail = "\n".join(excerpt.splitlines()[-50:])
+        raise RuntimeError(
+            f"Comando falhou ({process.returncode}): {' '.join(command)}\n"
+            f"Últimas linhas de {log_file}:\n{tail}"
+        )
     return elapsed
 
 
-def cpu_option(colmap: str, command: str, choices: tuple[str, str]) -> list[str]:
+def colmap_option(colmap: str, command: str, choices: tuple[str, ...]) -> str:
     help_result = subprocess.run([colmap, command, "-h"], capture_output=True,
                                  text=True, check=False)
     help_text = help_result.stdout + help_result.stderr
     for option in choices:
         if option in help_text:
-            return [option, "0"]
-    raise RuntimeError(f"Não achei opção de CPU para {command}; confira `colmap {command} -h`.")
+            return option
+    raise RuntimeError(f"Nenhuma opção {choices} em `colmap {command} -h`.")
+
+
+def cpu_option(colmap: str, command: str, choices: tuple[str, ...]) -> list[str]:
+    return [colmap_option(colmap, command, choices), "0"]
 
 
 def camera_intrinsics_json(camera) -> dict | None:
@@ -129,8 +140,8 @@ def main() -> None:
 
     cmd = [args.colmap, "feature_extractor", "--database_path", str(db),
            "--image_path", str(image_path),
-           "--FeatureExtraction.max_image_size", str(args.feature_image_size),
-           "--FeatureExtraction.num_threads", str(args.feature_threads),
+           colmap_option(args.colmap, "feature_extractor", ("--FeatureExtraction.max_image_size", "--SiftExtraction.max_image_size")), str(args.feature_image_size),
+           colmap_option(args.colmap, "feature_extractor", ("--FeatureExtraction.num_threads", "--SiftExtraction.num_threads")), str(args.feature_threads),
            "--SiftExtraction.max_num_features", str(args.max_features)]
     if args.cpu:
         cmd += cpu_option(args.colmap, "feature_extractor",
@@ -138,7 +149,9 @@ def main() -> None:
     timing["feature_extractor_s"] = execute(cmd, log)
 
     cmd = [args.colmap, f"{args.matching}_matcher", "--database_path", str(db)]
-    cmd += ["--FeatureMatching.max_num_matches", str(args.max_matches)]
+    cmd += [colmap_option(args.colmap, f"{args.matching}_matcher",
+                          ("--FeatureMatching.max_num_matches", "--SiftMatching.max_num_matches")),
+            str(args.max_matches)]
     if args.loop_detection:
         cmd += ["--SequentialMatching.loop_detection", "1"]
     if args.cpu:
