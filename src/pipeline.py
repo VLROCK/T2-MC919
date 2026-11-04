@@ -43,6 +43,13 @@ def colmap_option(colmap: str, command: str, choices: tuple[str, ...]) -> str:
     raise RuntimeError(f"Nenhuma opção {choices} em `colmap {command} -h`.")
 
 
+def colmap_command_available(colmap: str, command: str) -> bool:
+    """Check a command without starting a reconstruction or parsing version text."""
+    result = subprocess.run([colmap, command, "-h"], capture_output=True,
+                            text=True, check=False)
+    return result.returncode == 0
+
+
 def cpu_option(colmap: str, command: str, choices: tuple[str, ...]) -> list[str]:
     return [colmap_option(colmap, command, choices), "0"]
 
@@ -218,11 +225,19 @@ def main() -> None:
             timing["delaunay_mesher_s"] = execute([
                 args.colmap, "delaunay_mesher", "--input_path", str(dense),
                 "--output_path", str(mesh_path)], log)
-            timing["mesh_texturer_s"] = execute([
-                args.colmap, "mesh_texturer", "--workspace_path", str(dense),
-                "--input_path", str(mesh_path), "--output_path", str(dense / "textured")], log)
             manifest["mesh_ply"] = str(mesh_path)
-            manifest["textured_dir"] = str(dense / "textured")
+            if colmap_command_available(args.colmap, "mesh_texturer"):
+                timing["mesh_texturer_s"] = execute([
+                    args.colmap, "mesh_texturer", "--workspace_path", str(dense),
+                    "--input_path", str(mesh_path), "--output_path", str(dense / "textured")], log)
+                if not ((dense / "textured" / "mesh.ply").is_file() and
+                        (dense / "textured" / "texture.png").is_file()):
+                    raise RuntimeError("mesh_texturer não gerou mesh.ply e texture.png.")
+                manifest["textured_dir"] = str(dense / "textured")
+                manifest["texture_status"] = "complete"
+            else:
+                manifest["texture_status"] = "unavailable_in_colmap"
+                print(f"Aviso: {args.colmap} não oferece mesh_texturer; malha disponível sem textura fotográfica.")
         manifest["timing_seconds"] = timing
     (work / "manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False), encoding="utf-8")
     print(json.dumps(manifest, indent=2, ensure_ascii=False))

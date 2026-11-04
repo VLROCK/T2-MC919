@@ -43,7 +43,9 @@ bash scripts/submit_cluster.sh --gres=gpu:1
 
 O primeiro job usa matching exaustivo nas 400 fotos e gera nuvem esparsa,
 poses, métricas e vídeo. O segundo depende do sucesso do primeiro e executa
-MVS, malha e textura. `--gres=gpu:1` é um exemplo: ajustem essa opção à
+MVS e malha. A textura fotográfica requer um COLMAP com `mesh_texturer` (4.0+);
+o executável 3.13 usado no cluster não oferece esse comando. `--gres=gpu:1` é
+um exemplo: ajustem essa opção à
 partição/GPU exigida pelo cluster. Sem GPU, retirem a opção e esperem uma
 execução mais lenta; MVS pode não estar disponível na instalação do COLMAP.
 Os recursos padrão nos scripts são 16 CPUs e 64 GB; também podem ser ajustados.
@@ -68,12 +70,36 @@ WORK_DIR=work/gpu_compat bash scripts/submit_resume.sh --gres=gpu:1
 ```
 
 `FINISH_JOB` calcula métricas, vídeo e comparação SIFT/ORB/AKAZE em CPU;
-`DENSE_JOB` inicia MVS, malha e textura em GPU após o primeiro terminar. Nenhum
+`DENSE_JOB` inicia MVS e malha em GPU após o primeiro terminar; só produz textura
+se o COLMAP instalado oferecer `mesh_texturer`. Nenhum
 dos dois refaz extração de características, matching ou mapeamento esparso.
 Consultem `squeue -j ID` e `results/logs/t2-finish-ID.out` ou
 `results/logs/t2-mvs-ID.out`. A análise de descritores passa a respeitar a
 orientação de pixels usada pela calibração do COLMAP, mesmo quando o EXIF pede
 rotação para visualização.
+
+Se um job denso anterior falhou apenas em `mesh_texturer` com o COLMAP 3.13,
+`fused.ply` e `meshed-delaunay.ply` já estão prontos. Após atualizar o código,
+finalizem os metadados e as métricas em um job curto, sem GPU nem repetição do MVS:
+
+```bash
+cd /home/victor.roquetto/T2-MC919
+git pull origin main
+export PY="$HOME/miniconda3/envs/horus_theme/bin/python"
+export COLMAP_BIN="$HOME/miniconda3/envs/t2_colmap/bin/colmap"
+export WORK_DIR=work/gpu_compat
+mkdir -p results/logs
+sbatch --parsable --export=ALL --output=results/logs/t2-finalize-%j.out \
+  scripts/slurm_finalize_dense.sh
+```
+
+O resumo passará a registrar `dense_ply`, `mesh_ply` e
+`texture_status: unavailable_in_colmap`. O job antigo continuará marcado como
+falho no `sacct`; o novo job registra a finalização.
+Se uma versão 4.0+ do COLMAP estiver disponível em outro ambiente, somente a
+etapa `mesh_texturer` precisa ser executada sobre `dense/`; a nuvem e a malha
+existentes podem ser reaproveitadas. Confiram primeiro `COLMAP4 mesh_texturer -h`
+e mantenham a pasta `dense/images` com as imagens retificadas.
 Se houver apenas uma compilação CPU do COLMAP, usem
 `CPU_ONLY=1 SKIP_DENSE=1 bash scripts/submit_cluster.sh` para executar o
 modelo esparso; a densificação do COLMAP requer CUDA.
@@ -95,14 +121,15 @@ python -m src.visualize --model work/main/sparse_txt \
   --output work/main/analysis/navigation.mp4
 ```
 
-Para cores mais contínuas e uma malha com textura, rodem a etapa pesada depois:
+Para cores mais contínuas e uma malha, rodem a etapa pesada depois:
 
 ```bash
 python -m src.densify --work work/main --mesh
 ```
 
-Ela produz `dense/fused.ply` (pontos densos coloridos),
-`dense/meshed-delaunay.ply` (superfície) e `dense/textured/` (malha e textura).
+Ela produz `dense/fused.ply` (pontos densos coloridos) e
+`dense/meshed-delaunay.ply` (superfície). Com COLMAP 4.0+, também produz
+`dense/textured/` (malha e textura fotográfica).
 Áreas sem fotos úteis poderão continuar com buracos ou artefatos. Após MVS,
 repitam `src.analysis` para atualizar a contagem de pontos densos.
 
